@@ -27,9 +27,15 @@ requirements clearly distinguished. City Council districts can be overlaid.
   revised before adoption, update that one file.
 - **Zoning district polygons** and **council district boundaries** load live
   in the browser from [City of Mesa GIS](https://opengis.mesaaz.gov/)
-  ArcGIS REST services (`gis.mesaaz.gov` / `maps.mesaaz.gov`), so the map
-  always reflects current adopted zoning. Several candidate endpoints are
-  tried in order (see [`js/data.js`](js/data.js)).
+  ArcGIS REST services, so the map always reflects current adopted zoning.
+  The verified endpoints (with fallbacks) are configured in
+  [`js/data.js`](js/data.js):
+  - Zoning (~8,000 parcels):
+    `https://gis.mesaaz.gov/mesaaz/rest/services/Planning/ZoningOverlay/MapServer/1`
+    (`Zoning` / `Description` fields)
+  - Council districts (6):
+    `https://gis.mesaaz.gov/mesaaz/rest/services/BaseMap/MesaDistricts/MapServer/2`
+    (`DISTRICT` field)
 - **Basemap**: CARTO Positron tiles (© OpenStreetMap contributors, © CARTO).
 
 No build step — plain HTML/CSS/JS with a vendored copy of
@@ -37,17 +43,15 @@ No build step — plain HTML/CSS/JS with a vendored copy of
 
 ## Hosting on GitHub Pages
 
-This is a plain static site (no build step), so it publishes directly from a
-branch. One-time setup:
-
-1. In the repository, go to **Settings → Pages**.
-2. Under **Source**, choose **Deploy from a branch**.
-3. Set **Branch** to `main` and the folder to **`/ (root)`**, then **Save**.
+This is a plain static site (no build step). It publishes automatically via
+GitHub Actions — the workflow in
+[`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
+enables Pages on its first run (build type **GitHub Actions**) and deploys on
+every push to the default branch, so **no manual Settings step is required**.
 
 GitHub serves the site at `https://<owner>.github.io/fstextamend/`
-(here, https://ianmesa.github.io/fstextamend/). Every push to `main`
-republishes automatically — usually live within a minute. The included
-`.nojekyll` file tells Pages to serve all directories as-is.
+(here, https://sonoflin.github.io/fstextamend/). The included `.nojekyll`
+file tells Pages to serve all directories as-is.
 
 All asset paths in `index.html` are relative, so the site works correctly
 under the `/fstextamend/` sub-path.
