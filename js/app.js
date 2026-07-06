@@ -425,12 +425,22 @@
     setStatus(`Loading zoning districts… ${done.toLocaleString()} of ${total.toLocaleString()} areas`);
   }
 
+  function showSnapshotBanner(generated) {
+    const el = document.getElementById('snapshot-banner');
+    if (!el) return;
+    const when = generated ? ` (captured ${esc(generated)})` : '';
+    el.innerHTML =
+      `OFFLINE SNAPSHOT — live Mesa GIS was unreachable, showing bundled zoning data${when}`;
+    el.hidden = false;
+  }
+
   function showError(err) {
     loadEl.innerHTML = `
       <div class="load-card error">
-        <h2>Couldn’t reach City of Mesa GIS</h2>
-        <p>The map loads zoning data live from <code>gis.mesaaz.gov</code>. The request failed —
-        this can happen on restricted networks or if the GIS service is briefly down.</p>
+        <h2>Couldn’t load zoning data</h2>
+        <p>The map tries live data from <code>gis.mesaaz.gov</code> and, if that’s unreachable,
+        a bundled snapshot shipped with the site. Both failed to load — this is unusual and may
+        indicate a network block on this site’s own files.</p>
         <p class="err-detail">${esc(err && err.message ? err.message : String(err))}</p>
         <button id="retry" class="btn">Try again</button>
         <a class="btn btn-ghost" href="?demo=1">Open UI demo (synthetic data)</a>
@@ -462,6 +472,7 @@
           document.getElementById('council-row').classList.add('unavailable');
           document.getElementById('council-toggle').disabled = true;
         }
+        if (zoning.snapshot) showSnapshotBanner(zoning.generated);
       }
       buildZoningLayer();
       buildCouncilLayer();

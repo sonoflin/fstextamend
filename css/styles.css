@@ -374,12 +374,14 @@ header .spacer { flex: 1; }
 }
 .btn-ghost { background: transparent; color: var(--brand-2); border: 1.5px solid var(--brand-2); }
 
-#demo-banner {
+#demo-banner, #snapshot-banner {
   position: absolute; top: 0.6rem; left: 50%; transform: translateX(-50%);
   z-index: 900; background: var(--cup-amber); color: #fff;
   font-weight: 700; font-size: 0.85rem;
   padding: 0.3rem 0.9rem; border-radius: 999px; box-shadow: var(--shadow);
+  max-width: calc(100% - 2rem); text-align: center;
 }
+#snapshot-banner { background: #14476f; }
 
 /* ---------------- About dialog ---------------- */
 dialog#about {

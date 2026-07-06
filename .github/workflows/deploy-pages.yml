@@ -35,7 +35,7 @@ jobs:
         # or CI config — into the artifact directory.
         run: |
           mkdir -p _site
-          cp -r index.html css js vendor .nojekyll _site/
+          cp -r index.html css js vendor data .nojekyll _site/
 
       - name: Configure Pages
         uses: actions/configure-pages@v5

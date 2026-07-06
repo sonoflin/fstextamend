@@ -24,24 +24,34 @@ const COUNCIL_CANDIDATES = [
   'https://maps.mesaaz.gov/server/rest/services/Transportation/Council_District/MapServer/0',
 ];
 
+// Bundled snapshot of the same Mesa GIS layers, served from this site's own
+// origin. Used as a fallback when the live GIS service is unreachable — e.g.
+// on networks that block outbound access to gis.mesaaz.gov. Regenerate with
+// tools/build-snapshot.mjs.
+const SNAPSHOT_ZONING = 'data/zoning.geojson';
+const SNAPSHOT_COUNCIL = 'data/council.geojson';
+
 const FETCH_TIMEOUT_MS = 25000;
+// The initial reachability probe of each live endpoint uses a shorter timeout
+// so restricted networks fall back to the snapshot quickly instead of hanging.
+const PROBE_TIMEOUT_MS = 9000;
 const CHUNK_SIZE = 700;
 const CONCURRENCY = 4;
 
-function timeoutFetch(url, opts = {}) {
+function timeoutFetch(url, opts = {}, timeoutMs = FETCH_TIMEOUT_MS) {
   const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), FETCH_TIMEOUT_MS);
+  const t = setTimeout(() => ctl.abort(), timeoutMs);
   return fetch(url, { ...opts, signal: ctl.signal }).finally(() => clearTimeout(t));
 }
 
-async function getJSON(url, params) {
+async function getJSON(url, params, timeoutMs) {
   const body = new URLSearchParams({ f: 'json', ...params });
   // POST keeps long objectIds lists off the URL.
   const res = await timeoutFetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
-  });
+  }, timeoutMs);
   if (!res.ok) throw new Error(`HTTP ${res.status} from ${url}`);
   const json = await res.json();
   if (json.error) throw new Error(`ArcGIS error ${json.error.code || ''}: ${json.error.message || 'unknown'}`);
@@ -107,7 +117,7 @@ function esriToGeoJSON(esri) {
 /* ---- Layer discovery ---- */
 
 async function inspectLayer(url) {
-  const meta = await getJSON(url, {});
+  const meta = await getJSON(url, {}, PROBE_TIMEOUT_MS);
   if (meta.type && meta.type !== 'Feature Layer') throw new Error(`${url}: not a feature layer`);
   if (meta.geometryType !== 'esriGeometryPolygon') throw new Error(`${url}: not polygons`);
   return meta;
@@ -170,6 +180,16 @@ async function fetchAllFeatures(url, meta, outFields, onProgress) {
   return { type: 'FeatureCollection', features };
 }
 
+/* ---- Bundled snapshot fallback (same-origin, works on restricted networks) ---- */
+
+async function loadSnapshot(path) {
+  const res = await timeoutFetch(path, { headers: { Accept: 'application/geo+json,application/json' } });
+  if (!res.ok) throw new Error(`HTTP ${res.status} from ${path}`);
+  const fc = await res.json();
+  if (!fc || fc.type !== 'FeatureCollection') throw new Error(`${path}: not a FeatureCollection`);
+  return fc;
+}
+
 /* ---- Public loaders ---- */
 
 async function loadZoning(onProgress, onStatus) {
@@ -190,12 +210,23 @@ async function loadZoning(onProgress, onStatus) {
       const outFields = dscrField ? [zoneField, dscrField] : [zoneField];
       if (onStatus) onStatus(`Loading zoning districts (“${name}”)…`);
       const fc = await fetchAllFeatures(url, meta, outFields, onProgress);
-      return { fc, zoneField, dscrField, source: url, layerName: name };
+      return { fc, zoneField, dscrField, source: url, layerName: name, snapshot: false };
     } catch (e) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error('No zoning layer candidate succeeded');
+  // Live GIS unreachable — fall back to the bundled snapshot.
+  try {
+    if (onStatus) onStatus('Live Mesa GIS unreachable — loading bundled snapshot…');
+    const fc = await loadSnapshot(SNAPSHOT_ZONING);
+    return {
+      fc, zoneField: 'Zoning', dscrField: 'Description',
+      source: SNAPSHOT_ZONING, layerName: 'Zoning (snapshot)',
+      snapshot: true, generated: fc.generated || null,
+    };
+  } catch (e) {
+    throw lastErr || e || new Error('No zoning layer candidate succeeded');
+  }
 }
 
 async function loadCouncil(onStatus) {
@@ -215,12 +246,17 @@ async function loadCouncil(onStatus) {
       const outFields = [distField, memberField].filter(Boolean);
       if (onStatus) onStatus('Loading council districts…');
       const fc = await fetchAllFeatures(url, meta, outFields.length ? outFields : ['*'], null);
-      return { fc, distField, memberField, source: url };
+      return { fc, distField, memberField, source: url, snapshot: false };
     } catch (e) {
       lastErr = e;
     }
   }
-  throw lastErr || new Error('No council district candidate succeeded');
+  try {
+    const fc = await loadSnapshot(SNAPSHOT_COUNCIL);
+    return { fc, distField: 'DISTRICT', memberField: null, source: SNAPSHOT_COUNCIL, snapshot: true };
+  } catch (e) {
+    throw lastErr || e || new Error('No council district candidate succeeded');
+  }
 }
 
 /* ---- Zoning code normalization ----

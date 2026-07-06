@@ -36,6 +36,13 @@ requirements clearly distinguished. City Council districts can be overlaid.
   - Council districts (6):
     `https://gis.mesaaz.gov/mesaaz/rest/services/BaseMap/MesaDistricts/MapServer/2`
     (`DISTRICT` field)
+- **Offline / restricted-network fallback**: a bundled snapshot of the same two
+  layers lives in [`data/zoning.geojson`](data/zoning.geojson) and
+  [`data/council.geojson`](data/council.geojson) and is served from the site's
+  own origin. If the live GIS service is unreachable (e.g. a network that blocks
+  `gis.mesaaz.gov`), the map automatically loads the snapshot instead of failing,
+  and shows an "offline snapshot" notice. Regenerate it with
+  `node tools/build-snapshot.mjs` (requires access to Mesa GIS).
 - **Basemap**: CARTO Positron tiles (© OpenStreetMap contributors, © CARTO).
 
 No build step — plain HTML/CSS/JS with a vendored copy of
