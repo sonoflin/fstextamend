@@ -7,19 +7,21 @@
    layer metadata before use.
    ========================================================================= */
 
+// Verified live City of Mesa ArcGIS REST endpoints (checked against their
+// public layer metadata). The first entry in each list is the current
+// working service; the rest are kept as fallbacks in case a layer id or
+// service name changes.
 const ZONING_CANDIDATES = [
-  'https://gis.mesaaz.gov/mesaaz/rest/services/Planning/Zoning/MapServer/0',
-  'https://gis.mesaaz.gov/mesaaz/rest/services/Planning/Zoning/MapServer/1',
-  'https://gis.mesaaz.gov/mesaaz/rest/services/Planning/Zoning/MapServer/2',
+  'https://gis.mesaaz.gov/mesaaz/rest/services/Planning/ZoningOverlay/MapServer/1',
+  'https://gis.mesaaz.gov/s_mesaaz/rest/services/Planning/ZoningOverlay/MapServer/1',
+  'https://gis.mesaaz.gov/mesaaz/rest/services/Planning/PlanningLayers/MapServer/2',
   'https://gis.mesaaz.gov/mesaaz/rest/services/Accela/Accela_Base/MapServer/33',
-  'https://gis.mesaaz.gov/s_mesaaz/rest/services/Accela/Accela_Base/MapServer/33',
-  'https://gis.mesaaz.gov/s_mesaaz/rest/services/Planning/Zoning/MapServer/0',
 ];
 
 const COUNCIL_CANDIDATES = [
-  'https://maps.mesaaz.gov/server/rest/services/Transportation/Council_District/MapServer/0',
+  'https://gis.mesaaz.gov/mesaaz/rest/services/BaseMap/MesaDistricts/MapServer/2',
   'https://gis.mesaaz.gov/mesaaz/rest/services/Accela/Accela_Boundaries/MapServer/1',
-  'https://gis.mesaaz.gov/mesaaz/rest/services/Accela/Accela_Boundaries/MapServer/0',
+  'https://maps.mesaaz.gov/server/rest/services/Transportation/Council_District/MapServer/0',
 ];
 
 const FETCH_TIMEOUT_MS = 25000;
