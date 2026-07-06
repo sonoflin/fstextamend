@@ -43,15 +43,25 @@ No build step — plain HTML/CSS/JS with a vendored copy of
 
 ## Hosting on GitHub Pages
 
-This is a plain static site (no build step). It publishes automatically via
-GitHub Actions — the workflow in
+This is a plain static site (no build step). It publishes via GitHub Actions:
+the workflow in
 [`.github/workflows/deploy-pages.yml`](.github/workflows/deploy-pages.yml)
-enables Pages on its first run (build type **GitHub Actions**) and deploys on
-every push to the default branch, so **no manual Settings step is required**.
+deploys on every push to the default branch.
 
-GitHub serves the site at `https://<owner>.github.io/fstextamend/`
-(here, https://sonoflin.github.io/fstextamend/). The included `.nojekyll`
-file tells Pages to serve all directories as-is.
+**One-time setup** (the Actions token cannot enable Pages by itself):
+
+1. In the repository, go to **Settings → Pages**.
+2. Under **Build and deployment → Source**, choose **GitHub Actions**.
+
+That's it. The next push to the default branch (or a manual
+**Actions → Deploy to GitHub Pages → Run workflow**) publishes the site at
+`https://<owner>.github.io/fstextamend/` (here,
+https://sonoflin.github.io/fstextamend/). The included `.nojekyll` file tells
+Pages to serve all directories as-is.
+
+> Prefer no workflow? Instead pick **Deploy from a branch** in that same
+> Settings → Pages menu, select the default branch and the `/ (root)` folder,
+> and GitHub will serve these static files directly.
 
 All asset paths in `index.html` are relative, so the site works correctly
 under the `/fstextamend/` sub-path.

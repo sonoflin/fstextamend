@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - claude/mesa-zoning-amendment-map-zfx2v0
-      - cursor/connect-mesa-zoning-data-66b8
   workflow_dispatch:
 
 permissions:
