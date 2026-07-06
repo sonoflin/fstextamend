@@ -15,7 +15,7 @@
       <div class="seal" aria-hidden="true">MESA</div>
       <div class="titles">
         <h1>Fleet-Based Services &amp; Service Stations — Zoning Text Amendment</h1>
-        <p class="subtitle">City of Mesa · Title 11 (Chapters 6, 7, 8, 31 &amp; 86) · Planning &amp; Zoning Board, June 24, 2026</p>
+        <p class="subtitle">City of Mesa · Title 11 (Chapters 6, 7, 8, 31 &amp; 86)</p>
       </div>
       <div class="spacer"></div>
       <button class="btn-about" id="about-open">About this map</button>
@@ -31,7 +31,7 @@
       <fieldset class="layer-toggles" id="layer-toggles" aria-label="Map layers">
         <label class="layer-row" id="mesa-zoning-row">
           <input type="checkbox" id="mesa-zoning-toggle" />
-          Mesa zoning colors
+          Mesa Zoning Layer
         </label>
         <label class="layer-row" id="zoning-labels-row">
           <input type="checkbox" id="zoning-labels-toggle" />
@@ -48,7 +48,6 @@
       <div id="map"></div>
       <div id="legend" aria-live="polite"></div>
       <div id="demo-banner" hidden>DEMO DATA — synthetic parcels for preview only</div>
-      <div id="snapshot-banner" hidden></div>
     </div>
 
     <aside id="panel" aria-label="Amendment details">
@@ -88,10 +87,11 @@
       district-by-district status; dashed black lines are City Council districts.
     </p>
     <h3>Sources</h3>
+    <p id="about-snapshot-note" class="about-snapshot-note" hidden></p>
     <ul>
       <li>Ordinance text: Exhibit 1 (Fleet Services &amp; Service Station Ordinance) and Exhibit 2 (Section 11-31-40), as recommended in the June 24, 2026 Planning &amp; Zoning Board staff report.</li>
       <li>Current code: <a href="https://library.municode.com/az/mesa/codes/code_of_ordinances?nodeId=COOR_TIT11ZOOR" target="_blank" rel="noopener">Mesa Zoning Ordinance (Title 11)</a>.</li>
-      <li>Zoning &amp; council district boundaries: <a href="https://opengis.mesaaz.gov/" target="_blank" rel="noopener">City of Mesa GIS</a>, loaded live at page open. On networks that block the live GIS service, the map automatically falls back to a bundled snapshot of the same layers so the real data still displays (a notice appears when the snapshot is in use).</li>
+      <li>Zoning &amp; council district boundaries: <a href="https://opengis.mesaaz.gov/" target="_blank" rel="noopener">City of Mesa GIS</a>, loaded live at page open. On networks that block the live GIS service, the map automatically falls back to a bundled snapshot of the same layers.</li>
     </ul>
     <p style="font-size:0.85rem;color:#52514e">
       Unofficial visualization prepared for public engagement and board discussion.

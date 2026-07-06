@@ -481,7 +481,7 @@
         legendRow('sw-x', 'Not permitted');
     }
     el.innerHTML = `<div class="lg-title">Legend</div>${rows}` +
-      (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Official Mesa zoning colors (reference)') : '') +
+      (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Mesa Zoning Layer (reference)') : '') +
       (state.zoningLabels ? legendRow('sw-zone-label', 'Zoning district code labels') : '') +
       (state.council ? legendRow('sw-council', 'City Council district boundary') : '');
   }
@@ -602,12 +602,12 @@
     setStatus(`Loading zoning districts… ${done.toLocaleString()} of ${total.toLocaleString()} areas`);
   }
 
-  function showSnapshotBanner(generated) {
-    const el = document.getElementById('snapshot-banner');
+  function noteSnapshotInAbout(generated) {
+    const el = document.getElementById('about-snapshot-note');
     if (!el) return;
     const when = generated ? ` (captured ${esc(generated)})` : '';
-    el.innerHTML =
-      `OFFLINE SNAPSHOT — live Mesa GIS was unreachable, showing bundled zoning data${when}`;
+    el.textContent =
+      `This session is using an offline snapshot of Mesa GIS data${when} because the live service was unreachable on your network. The map still shows real adopted zoning; it may not reflect the very latest GIS edits.`;
     el.hidden = false;
   }
 
@@ -651,7 +651,7 @@
           document.getElementById('council-row').classList.add('unavailable');
           document.getElementById('council-toggle').disabled = true;
         }
-        if (zoning.snapshot) showSnapshotBanner(zoning.generated);
+        if (zoning.snapshot) noteSnapshotInAbout(zoning.generated);
       }
       buildZoningLayer();
       buildCouncilLayer();
