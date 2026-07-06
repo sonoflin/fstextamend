@@ -188,6 +188,11 @@ header .spacer { flex: 1; }
   background: repeating-linear-gradient(45deg,
     var(--cup-amber) 0 4px, #fff 4px 5.5px);
 }
+.sw-same-cup {
+  background: repeating-linear-gradient(45deg,
+    var(--cup-amber) 0 4px, #fff 4px 5.5px);
+  border: 2px solid var(--same-blue);
+}
 .sw-same { background: var(--same-blue); }
 .sw-x { background: var(--no-gray); }
 .sw-nd { background: #dad8cf; border-style: dashed; }

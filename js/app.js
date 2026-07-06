@@ -18,6 +18,7 @@
     ND:   { fill: '#dad8cf', stroke: '#bab8ae', fillOpacity: 0.22, dashed: true },
     NEW_P:   { fill: '#008300', stroke: '#005c00', fillOpacity: 0.68 },
     NEW_CUP: { fill: '#b45309', stroke: '#7c3a06', fillOpacity: 0.70, hatch: true },
+    SAME_CUP: { fill: '#b45309', stroke: '#1c5cab', fillOpacity: 0.58, hatch: true },
     SAME_ALLOWED: { fill: '#2a78d6', stroke: '#1c5cab', fillOpacity: 0.42 },
     SAME_NO: { fill: '#c9c7be', stroke: '#b0aea4', fillOpacity: 0.22 },
     RES_SEP: { fill: '#4a3aa7', stroke: '#38307c', fillOpacity: 0.34 },
@@ -100,6 +101,7 @@
       const ch = R.classifyChange(use.current[base] || 'X', use.proposed[base] || 'X');
       return ch === 'NEW_P' ? 'NEW_P'
         : ch === 'NEW_CUP' ? 'NEW_CUP'
+        : ch === 'SAME_CUP' ? 'SAME_CUP'
         : ch === 'SAME_ALLOWED' ? 'SAME_ALLOWED'
         : 'SAME_NO';
     }
@@ -111,7 +113,7 @@
   // Background statuses (X, SAME_NO, NEUTRAL) go transparent so official
   // zoning colors show through and legend highlights remain readable.
   const AMENDMENT_EMPHASIS = new Set([
-    'P', 'PF', 'CUP', 'ND', 'NEW_P', 'NEW_CUP', 'SAME_ALLOWED', 'RES_SEP',
+    'P', 'PF', 'CUP', 'ND', 'NEW_P', 'NEW_CUP', 'SAME_CUP', 'SAME_ALLOWED', 'RES_SEP',
   ]);
 
   function styleForFeature(feat) {
@@ -201,7 +203,8 @@
       const badge =
         ch === 'NEW_P' ? '<span class="delta delta-new">NEW — permitted under the amendment</span>'
         : ch === 'NEW_CUP' ? '<span class="delta delta-new">NEW — allowed with Council Use Permit</span>'
-        : ch === 'SAME_ALLOWED' ? '<span class="delta delta-same">No change in permission</span>'
+        : ch === 'SAME_CUP' ? '<span class="delta delta-same">Allowed with CUP today — no change</span>'
+        : ch === 'SAME_ALLOWED' ? '<span class="delta delta-same">Permitted today — no change</span>'
         : '<span class="delta delta-none">Not allowed in either version</span>';
       body = `
         <table class="pp-table">
@@ -486,7 +489,8 @@
       rows =
         legendRow('sw-p', 'Newly permitted') +
         legendRow('sw-cup', 'Newly allowed with Council Use Permit (CUP)') +
-        (use.currentUndefined ? '' : legendRow('sw-same', 'Allowed today — no change')) +
+        (hasChangeCategory(use, 'SAME_CUP') ? legendRow('sw-same-cup', 'Currently allowed with CUP — no change') : '') +
+        (use.currentUndefined ? '' : legendRow('sw-same', 'Permitted today — no change')) +
         legendRow('sw-x', 'Not allowed (no change)');
     } else if (state.view === 'current' && use.currentUndefined) {
       rows = legendRow('sw-nd', 'Not a defined use classification in today’s code');
@@ -506,6 +510,16 @@
   function hasStatus(use, view, code) {
     const m = view === 'current' ? use.current : use.proposed;
     return Object.values(m).includes(code);
+  }
+
+  function hasChangeCategory(use, category) {
+    if (use.standardsOnly || use.currentUndefined) return false;
+    for (const d of R.TABLE_DISTRICTS) {
+      const cur = use.currentUndefined ? 'ND' : (use.current[d] || 'X');
+      const pro = use.proposed[d] || 'X';
+      if (R.classifyChange(cur === 'ND' ? 'X' : cur, pro) === category) return true;
+    }
+    return false;
   }
 
   /* ---------------- Info panel ---------------- */

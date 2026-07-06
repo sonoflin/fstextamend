@@ -252,7 +252,10 @@ function classifyChange(cur, pro) {
   if (!allowedCur && (pro === 'P' || pro === 'PF')) return 'NEW_P';
   if (!allowedCur && pro === 'CUP') return 'NEW_CUP';
   if (allowedCur && !allowedPro) return 'REMOVED';       // not used by this amendment
-  if (allowedCur && allowedPro) return 'SAME_ALLOWED';
+  if (allowedCur && allowedPro) {
+    if (cur === 'CUP' && pro === 'CUP') return 'SAME_CUP';
+    return 'SAME_ALLOWED';
+  }
   return 'SAME_NO';
 }
 
