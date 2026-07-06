@@ -112,12 +112,16 @@
     const key = styleKeyFor(state.use, state.view, base);
     const c = COLORS[key];
     const useHatch = c.hatch && HATCH[key === 'NEW_CUP' ? 'NEW_CUP' : 'CUP'];
+    let fillOpacity = c.fillOpacity;
+    // When the Mesa reference layer is on, lighten the amendment fill so official
+    // zoning colors remain visible underneath.
+    if (state.mesaZoning) fillOpacity *= 0.48;
     return {
       fillColor: useHatch || c.fill,
       color: c.stroke,
       weight: 0.7,
-      opacity: 0.9,
-      fillOpacity: c.fillOpacity,
+      opacity: state.mesaZoning ? 0.82 : 0.9,
+      fillOpacity,
       dashArray: c.dashed ? '3 3' : null,
     };
   }
@@ -149,6 +153,7 @@
   });
 
   const canvasRenderer = L.canvas({ padding: 0.3 });
+  const refCanvasRenderer = L.canvas({ padding: 0.3 });
   HATCH.CUP = makeHatch(COLORS.CUP.fill);
   HATCH.NEW_CUP = makeHatch(COLORS.NEW_CUP.fill);
 
@@ -228,11 +233,10 @@
   function syncLayerOrder() {
     if (state.mesaZoningLayer && state.mesaZoning) state.mesaZoningLayer.bringToBack();
     if (state.layer) state.layer.bringToFront();
-    if (state.councilLayer && state.council) {
-      state.councilLayer.bringToFront();
-      state.councilLabels.forEach((m) => m.bringToFront());
-    }
-    if (state.zoningLabels) state.zoningLabelMarkers.forEach((m) => m.bringToFront());
+    if (state.councilLayer && state.council) state.councilLayer.bringToFront();
+    // Markers don't support bringToFront in Leaflet — use zIndexOffset instead.
+    state.councilLabels.forEach((m) => m.setZIndexOffset(600));
+    state.zoningLabelMarkers.forEach((m) => m.setZIndexOffset(800));
   }
 
   function buildZoningLayer() {
@@ -285,8 +289,8 @@
     const { fc, zoneField } = state.zoning;
     state.mesaZoningLayer = L.geoJSON(fc, {
       interactive: false,
-      renderer: canvasRenderer,
-      style: (feat) => S.mesaZoningStyle(feat.properties[zoneField]),
+      renderer: refCanvasRenderer,
+      style: (feat) => S.mesaZoningStyle(feat.properties[zoneField], { fillOpacity: 0.55, weight: 0.4 }),
     });
     updateMesaZoningVisibility();
   }
@@ -303,9 +307,9 @@
   }
 
   /* Scale-aware zoning labels: larger parcels first, grid collision avoidance. */
-  const LABEL_GRID_PX = 46;
-  const LABEL_MIN_AREA = [0.000014, 0.000006, 0.000002, 0.0000006, 0.00000015];
-  const LABEL_MAX_COUNT = [36, 72, 140, 240, 420];
+  const LABEL_GRID_PX = 44;
+  const LABEL_MIN_AREA = [0.000004, 0.0000015, 0.0000004, 0.0000001, 0.000000025];
+  const LABEL_MAX_COUNT = [48, 96, 180, 320, 520];
   let labelRefreshTimer = null;
 
   function labelSizeClass(zoom) {
@@ -323,9 +327,9 @@
     clearZoningLabels();
     if (!state.zoningLabels || !state.zoning) return;
     const zoom = map.getZoom();
-    if (zoom < 11) return;
+    if (zoom < 10) return;
 
-    const zi = Math.min(zoom - 11, LABEL_MIN_AREA.length - 1);
+    const zi = Math.min(zoom - 10, LABEL_MIN_AREA.length - 1);
     const minArea = LABEL_MIN_AREA[zi];
     const maxCount = LABEL_MAX_COUNT[zi];
     const sizeClass = labelSizeClass(zoom);
@@ -671,6 +675,7 @@
   document.getElementById('mesa-zoning-toggle').addEventListener('change', (e) => {
     state.mesaZoning = e.target.checked;
     updateMesaZoningVisibility();
+    restyle();
     renderLegend();
     writeHash();
   });
