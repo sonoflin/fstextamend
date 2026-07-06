@@ -107,21 +107,37 @@
     return st === 'RES_SEP_TARGET' ? 'RES_SEP' : st === 'NEUTRAL' ? 'NEUTRAL' : st;
   }
 
+  // Amendment statuses that should stay vivid when Mesa Zoning Layer is on.
+  // Background statuses (X, SAME_NO, NEUTRAL) go transparent so official
+  // zoning colors show through and legend highlights remain readable.
+  const AMENDMENT_EMPHASIS = new Set([
+    'P', 'PF', 'CUP', 'ND', 'NEW_P', 'NEW_CUP', 'SAME_ALLOWED', 'RES_SEP',
+  ]);
+
   function styleForFeature(feat) {
     const base = feat._mesaBase;
     const key = styleKeyFor(state.use, state.view, base);
     const c = COLORS[key];
-    const useHatch = c.hatch && HATCH[key === 'NEW_CUP' ? 'NEW_CUP' : 'CUP'];
-    let fillOpacity = c.fillOpacity;
-    // When the Mesa reference layer is on, lighten the amendment fill so official
-    // zoning colors remain visible underneath.
-    if (state.mesaZoning) fillOpacity *= 0.48;
+    let useHatch = c.hatch && HATCH[key === 'NEW_CUP' ? 'NEW_CUP' : 'CUP'];
+
+    if (state.mesaZoning && !AMENDMENT_EMPHASIS.has(key)) {
+      // Underlying Mesa zoning carries district context here.
+      return {
+        fillColor: 'transparent',
+        color: c.stroke,
+        weight: 0.2,
+        opacity: 0.25,
+        fillOpacity: 0,
+        dashArray: c.dashed ? '3 3' : null,
+      };
+    }
+
     return {
       fillColor: useHatch || c.fill,
       color: c.stroke,
-      weight: 0.7,
-      opacity: state.mesaZoning ? 0.82 : 0.9,
-      fillOpacity,
+      weight: state.mesaZoning ? 0.8 : 0.7,
+      opacity: 0.92,
+      fillOpacity: c.fillOpacity,
       dashArray: c.dashed ? '3 3' : null,
     };
   }
@@ -290,7 +306,7 @@
     state.mesaZoningLayer = L.geoJSON(fc, {
       interactive: false,
       renderer: refCanvasRenderer,
-      style: (feat) => S.mesaZoningStyle(feat.properties[zoneField], { fillOpacity: 0.55, weight: 0.4 }),
+      style: (feat) => S.mesaZoningStyle(feat.properties[zoneField], { fillOpacity: 0.5, weight: 0.35 }),
     });
     updateMesaZoningVisibility();
   }
@@ -481,7 +497,8 @@
         legendRow('sw-x', 'Not permitted');
     }
     el.innerHTML = `<div class="lg-title">Legend</div>${rows}` +
-      (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Mesa Zoning Layer (reference)') : '') +
+      (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Mesa Zoning Layer — district colors where amendment is neutral') : '') +
+      (state.mesaZoning ? legendRow('sw-mesa-blend', 'Amendment colors highlight permitted, CUP & changed districts') : '') +
       (state.zoningLabels ? legendRow('sw-zone-label', 'Zoning district code labels') : '') +
       (state.council ? legendRow('sw-council', 'City Council district boundary') : '');
   }

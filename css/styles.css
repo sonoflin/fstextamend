@@ -201,6 +201,10 @@ header .spacer { flex: 1; }
 .sw-mesa-zoning {
   background: linear-gradient(135deg, #ffe9b0 0%, #ffe9b0 33%, #b8e0a8 33%, #b8e0a8 66%, #9ec5ff 66%);
 }
+.sw-mesa-blend {
+  background: linear-gradient(90deg, #008300 0%, #008300 40%, transparent 40%, transparent 60%, #b45309 60%, #b45309 100%);
+  border-style: dashed;
+}
 .sw-zone-label {
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink-2);
