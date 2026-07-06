@@ -4,6 +4,10 @@
 (() => {
   const R = window.MesaRules;
   const D = window.MesaData;
+  const S = window.MesaZoningSymbology;
+
+  // East Valley view — Mesa plus immediate surroundings; prevents panning to the world.
+  const VIEW_BOUNDS = L.latLngBounds([33.24, -111.98], [33.58, -111.48]);
 
   /* ---------------- Colors (validated palette) ---------------- */
   const COLORS = {
@@ -43,12 +47,16 @@
   const state = {
     use: 'lightFleet',
     view: 'proposed', // 'current' | 'proposed' | 'changes'
+    mesaZoning: false,
+    zoningLabels: false,
     council: true,
     zoning: null,       // { fc, zoneField, dscrField, ... }
     council_: null,
     layer: null,
+    mesaZoningLayer: null,
     councilLayer: null,
     councilLabels: [],
+    zoningLabelMarkers: [],
     demo: /[?&]demo=1/.test(location.search),
   };
 
@@ -56,12 +64,16 @@
     const h = new URLSearchParams(location.hash.replace(/^#/, ''));
     if (h.get('use') && R.USES[h.get('use')]) state.use = h.get('use');
     if (['current', 'proposed', 'changes'].includes(h.get('view'))) state.view = h.get('view');
+    if (h.get('zones') === '1') state.mesaZoning = true;
+    if (h.get('labels') === '1') state.zoningLabels = true;
     if (h.get('council') === '0') state.council = false;
   }
   function writeHash() {
     const h = new URLSearchParams();
     h.set('use', state.use);
     h.set('view', state.view);
+    if (state.mesaZoning) h.set('zones', '1');
+    if (state.zoningLabels) h.set('labels', '1');
     if (!state.council) h.set('council', '0');
     history.replaceState(null, '', '#' + h.toString());
   }
@@ -115,8 +127,10 @@
     zoomControl: false,
     preferCanvas: true,
     attributionControl: true,
-    minZoom: 9,
+    minZoom: 10,
     maxZoom: 18,
+    maxBounds: VIEW_BOUNDS,
+    maxBoundsViscosity: 1.0,
   }).setView([33.415, -111.72], 11);
   L.control.zoom({ position: 'bottomright' }).addTo(map);
   map.attributionControl.setPrefix(false);
@@ -185,6 +199,42 @@
   }
 
   /* ---------------- Rendering: zoning layer ---------------- */
+  function ringArea(ring) {
+    let a = 0;
+    for (let i = 0, n = ring.length; i < n; i++) {
+      const [x1, y1] = ring[i];
+      const [x2, y2] = ring[(i + 1) % n];
+      a += x1 * y2 - x2 * y1;
+    }
+    return a / 2;
+  }
+
+  function featureArea(geom) {
+    if (geom.type === 'Polygon') return Math.abs(ringArea(geom.coordinates[0]));
+    let a = 0;
+    for (const poly of geom.coordinates) a += Math.abs(ringArea(poly[0]));
+    return a;
+  }
+
+  function prepLabelMeta(feat, zoneField) {
+    if (!feat._mesaLabelAt) {
+      feat._mesaLabelAt = polylabelish(feat.geometry);
+      feat._mesaLabelArea = featureArea(feat.geometry);
+      const raw = feat._mesaRaw || feat.properties[zoneField] || '';
+      feat._mesaLabelText = S.zoneColorKey(raw) || raw;
+    }
+  }
+
+  function syncLayerOrder() {
+    if (state.mesaZoningLayer && state.mesaZoning) state.mesaZoningLayer.bringToBack();
+    if (state.layer) state.layer.bringToFront();
+    if (state.councilLayer && state.council) {
+      state.councilLayer.bringToFront();
+      state.councilLabels.forEach((m) => m.bringToFront());
+    }
+    if (state.zoningLabels) state.zoningLabelMarkers.forEach((m) => m.bringToFront());
+  }
+
   function buildZoningLayer() {
     if (state.layer) { map.removeLayer(state.layer); state.layer = null; }
     const { fc, zoneField, dscrField } = state.zoning;
@@ -195,6 +245,7 @@
         f._mesaRaw = norm.display;
         f._mesaDscr = dscrField ? f.properties[dscrField] : '';
       }
+      prepLabelMeta(f, zoneField);
     }
     state.layer = L.geoJSON(fc, {
       renderer: canvasRenderer,
@@ -205,12 +256,132 @@
         lyr.on('mouseout', () => lyr.setStyle(styleForFeature(feat)));
       },
     }).addTo(map);
-    if (state.councilLayer) state.councilLayer.bringToFront();
-    try {
-      const b = state.layer.getBounds();
-      if (b.isValid()) map.fitBounds(b.pad(0.02));
-    } catch (_) { /* keep default view */ }
+    buildMesaZoningLayer();
+    syncLayerOrder();
+    applyViewBounds();
   }
+
+  function applyViewBounds() {
+    try {
+      const dataBounds = state.layer && state.layer.getBounds();
+      if (dataBounds && dataBounds.isValid()) {
+        map.fitBounds(dataBounds.pad(0.04), { maxZoom: 13 });
+      } else {
+        map.fitBounds(VIEW_BOUNDS);
+      }
+      const minZ = map.getBoundsZoom(VIEW_BOUNDS, false);
+      if (minZ > map.getMinZoom()) map.setMinZoom(minZ);
+    } catch (_) {
+      map.fitBounds(VIEW_BOUNDS);
+    }
+  }
+
+  function buildMesaZoningLayer() {
+    if (state.mesaZoningLayer) {
+      map.removeLayer(state.mesaZoningLayer);
+      state.mesaZoningLayer = null;
+    }
+    if (!state.zoning) return;
+    const { fc, zoneField } = state.zoning;
+    state.mesaZoningLayer = L.geoJSON(fc, {
+      interactive: false,
+      renderer: canvasRenderer,
+      style: (feat) => S.mesaZoningStyle(feat.properties[zoneField]),
+    });
+    updateMesaZoningVisibility();
+  }
+
+  function updateMesaZoningVisibility() {
+    if (!state.mesaZoningLayer) return;
+    if (state.mesaZoning) {
+      state.mesaZoningLayer.addTo(map);
+      state.mesaZoningLayer.bringToBack();
+    } else {
+      map.removeLayer(state.mesaZoningLayer);
+    }
+    syncLayerOrder();
+  }
+
+  /* Scale-aware zoning labels: larger parcels first, grid collision avoidance. */
+  const LABEL_GRID_PX = 46;
+  const LABEL_MIN_AREA = [0.000014, 0.000006, 0.000002, 0.0000006, 0.00000015];
+  const LABEL_MAX_COUNT = [36, 72, 140, 240, 420];
+  let labelRefreshTimer = null;
+
+  function labelSizeClass(zoom) {
+    if (zoom >= 15) return 'zl-lg';
+    if (zoom >= 13) return 'zl-md';
+    return 'zl-sm';
+  }
+
+  function clearZoningLabels() {
+    state.zoningLabelMarkers.forEach((m) => map.removeLayer(m));
+    state.zoningLabelMarkers = [];
+  }
+
+  function refreshZoningLabels() {
+    clearZoningLabels();
+    if (!state.zoningLabels || !state.zoning) return;
+    const zoom = map.getZoom();
+    if (zoom < 11) return;
+
+    const zi = Math.min(zoom - 11, LABEL_MIN_AREA.length - 1);
+    const minArea = LABEL_MIN_AREA[zi];
+    const maxCount = LABEL_MAX_COUNT[zi];
+    const sizeClass = labelSizeClass(zoom);
+    const bounds = map.getBounds().pad(-0.015);
+    const { fc } = state.zoning;
+    const candidates = [];
+
+    for (const f of fc.features) {
+      if (!f._mesaLabelAt || f._mesaLabelArea < minArea) continue;
+      if (!bounds.contains(f._mesaLabelAt)) continue;
+      candidates.push(f);
+    }
+    candidates.sort((a, b) => b._mesaLabelArea - a._mesaLabelArea);
+
+    const occupied = new Set();
+    let placed = 0;
+    for (const f of candidates) {
+      if (placed >= maxCount) break;
+      const pt = map.latLngToContainerPoint(f._mesaLabelAt);
+      const gx = Math.floor(pt.x / LABEL_GRID_PX);
+      const gy = Math.floor(pt.y / LABEL_GRID_PX);
+      let blocked = false;
+      for (let dx = -1; dx <= 1 && !blocked; dx++) {
+        for (let dy = -1; dy <= 1; dy++) {
+          if (occupied.has(`${gx + dx},${gy + dy}`)) blocked = true;
+        }
+      }
+      if (blocked) continue;
+      occupied.add(`${gx},${gy}`);
+      state.zoningLabelMarkers.push(L.marker(f._mesaLabelAt, {
+        interactive: false,
+        keyboard: false,
+        icon: L.divIcon({
+          className: `zone-label ${sizeClass}`,
+          html: `<span>${esc(f._mesaLabelText)}</span>`,
+          iconSize: null,
+        }),
+      }).addTo(map));
+      placed++;
+    }
+    syncLayerOrder();
+  }
+
+  function scheduleLabelRefresh() {
+    if (!state.zoningLabels) return;
+    clearTimeout(labelRefreshTimer);
+    labelRefreshTimer = setTimeout(refreshZoningLabels, 90);
+  }
+
+  function updateZoningLabelsVisibility() {
+    if (state.zoningLabels) refreshZoningLabels();
+    else clearZoningLabels();
+    syncLayerOrder();
+  }
+
+  map.on('zoomend moveend', scheduleLabelRefresh);
 
   function restyle() {
     if (state.layer) state.layer.setStyle(styleForFeature);
@@ -270,12 +441,12 @@
     if (!state.councilLayer) return;
     if (state.council) {
       state.councilLayer.addTo(map);
-      state.councilLayer.bringToFront();
       state.councilLabels.forEach((m) => m.addTo(map));
     } else {
       map.removeLayer(state.councilLayer);
       state.councilLabels.forEach((m) => map.removeLayer(m));
     }
+    syncLayerOrder();
   }
 
   /* ---------------- Legend ---------------- */
@@ -306,6 +477,8 @@
         legendRow('sw-x', 'Not permitted');
     }
     el.innerHTML = `<div class="lg-title">Legend</div>${rows}` +
+      (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Official Mesa zoning colors (reference)') : '') +
+      (state.zoningLabels ? legendRow('sw-zone-label', 'Zoning district code labels') : '') +
       (state.council ? legendRow('sw-council', 'City Council district boundary') : '');
   }
 
@@ -451,6 +624,8 @@
   async function boot() {
     readHash();
     if (R.USES[state.use].standardsOnly) document.getElementById('view-toggle').classList.add('disabled');
+    document.getElementById('mesa-zoning-toggle').checked = state.mesaZoning;
+    document.getElementById('zoning-labels-toggle').checked = state.zoningLabels;
     document.getElementById('council-toggle').checked = state.council;
     update();
 
@@ -493,6 +668,18 @@
       update();
     })
   );
+  document.getElementById('mesa-zoning-toggle').addEventListener('change', (e) => {
+    state.mesaZoning = e.target.checked;
+    updateMesaZoningVisibility();
+    renderLegend();
+    writeHash();
+  });
+  document.getElementById('zoning-labels-toggle').addEventListener('change', (e) => {
+    state.zoningLabels = e.target.checked;
+    updateZoningLabelsVisibility();
+    renderLegend();
+    writeHash();
+  });
   document.getElementById('council-toggle').addEventListener('change', (e) => {
     state.council = e.target.checked;
     updateCouncilVisibility();
