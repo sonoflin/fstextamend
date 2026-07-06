@@ -46,7 +46,13 @@
 
     <div id="map-wrap">
       <div id="map"></div>
-      <div id="legend" aria-live="polite"></div>
+      <div id="legend" aria-live="polite">
+        <div id="legend-top">
+          <span class="lg-title">Legend</span>
+          <button type="button" id="legend-collapse" title="Minimize legend" aria-label="Minimize legend" aria-expanded="true" aria-controls="legend-body">−</button>
+        </div>
+        <div id="legend-body"></div>
+      </div>
       <div id="demo-banner" hidden>DEMO DATA — synthetic parcels for preview only</div>
     </div>
 

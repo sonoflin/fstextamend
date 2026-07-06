@@ -478,7 +478,8 @@
   }
 
   function renderLegend() {
-    const el = document.getElementById('legend');
+    const el = document.getElementById('legend-body');
+    if (!el) return;
     const use = R.USES[state.use];
     let rows = '';
     if (state.use === 'serviceStations') {
@@ -500,11 +501,23 @@
         (hasStatus(use, state.view, 'CUP') ? legendRow('sw-cup', 'Council Use Permit (CUP) required') : '') +
         legendRow('sw-x', 'Not permitted');
     }
-    el.innerHTML = `<div class="lg-title">Legend</div>${rows}` +
+    el.innerHTML = rows +
       (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Mesa Zoning Layer — district colors where amendment is neutral') : '') +
       (state.mesaZoning ? legendRow('sw-mesa-blend', 'Amendment colors highlight permitted, CUP & changed districts') : '') +
       (state.zoningLabels ? legendRow('sw-zone-label', 'Zoning district code labels') : '') +
       (state.council ? legendRow('sw-council', 'City Council district boundary') : '');
+  }
+
+  function setLegendCollapsed(collapsed) {
+    const leg = document.getElementById('legend');
+    const btn = document.getElementById('legend-collapse');
+    if (!leg || !btn) return;
+    leg.classList.toggle('collapsed', collapsed);
+    btn.setAttribute('aria-expanded', String(!collapsed));
+    const label = collapsed ? 'Show legend' : 'Minimize legend';
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.textContent = collapsed ? '+' : '−';
   }
 
   function hasStatus(use, view, code) {
@@ -721,6 +734,10 @@
     updateCouncilVisibility();
     renderLegend();
     writeHash();
+  });
+  document.getElementById('legend-collapse').addEventListener('click', () => {
+    const leg = document.getElementById('legend');
+    setLegendCollapsed(!leg.classList.contains('collapsed'));
   });
   document.getElementById('panel-collapse').addEventListener('click', () => {
     document.body.classList.toggle('panel-collapsed');
