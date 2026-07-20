@@ -205,43 +205,44 @@ function mesaZoningStyle(raw, opts = {}) {
 }
 
 /* Residential district groups from City of Mesa Zoning field values.
-   Violet family — distinct from amendment green/amber/blue, subtle enough
-   to sit under the amendment overlay without overwhelming it. */
+   Yellow family (conventional residential map color) — distinct from
+   amendment green / CUP amber / same-allowed blue, with darker shades
+   for denser residential types. */
 const RESIDENTIAL_GROUPS = {
   single: {
     id: 'single',
     label: 'Single Residence (RS)',
     match: /^RS-/,
-    fill: '#c9b8ef',
-    stroke: '#7a62b8',
+    fill: '#fff0a8',
+    stroke: '#c9a227',
   },
   smallLot: {
     id: 'smallLot',
     label: 'Small Lot Single Residence (RSL)',
     match: /^RSL-/,
-    fill: '#a88ddd',
-    stroke: '#6a52a8',
+    fill: '#ffe066',
+    stroke: '#b8911a',
   },
   multi: {
     id: 'multi',
     label: 'Multiple Residence (RM)',
     match: /^RM-/,
-    fill: '#7e5fc4',
-    stroke: '#4f3a8a',
+    fill: '#f0c42e',
+    stroke: '#9a7a12',
   },
   downtown: {
     id: 'downtown',
     label: 'Downtown Residential (DR)',
     match: /^DR-/,
-    fill: '#5a3d9e',
-    stroke: '#3a2870',
+    fill: '#e0a818',
+    stroke: '#8a6a0e',
   },
   fbcNeighborhood: {
     id: 'fbcNeighborhood',
     label: 'Form-Based Neighborhood (T3N–T5N)',
     match: /^(T3N|T4N|T4NF|T5N)$/,
-    fill: '#9b7ad4',
-    stroke: '#5f4699',
+    fill: '#f5d24a',
+    stroke: '#a88818',
   },
 };
 
