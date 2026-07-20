@@ -49,12 +49,14 @@
     use: 'lightFleet',
     view: 'proposed', // 'current' | 'proposed' | 'changes'
     mesaZoning: false,
+    residential: false,
     zoningLabels: false,
     council: true,
     zoning: null,       // { fc, zoneField, dscrField, ... }
     council_: null,
     layer: null,
     mesaZoningLayer: null,
+    residentialLayer: null,
     councilLayer: null,
     councilLabels: [],
     zoningLabelMarkers: [],
@@ -66,6 +68,7 @@
     if (h.get('use') && R.USES[h.get('use')]) state.use = h.get('use');
     if (['current', 'proposed', 'changes'].includes(h.get('view'))) state.view = h.get('view');
     if (h.get('zones') === '1') state.mesaZoning = true;
+    if (h.get('res') === '1') state.residential = true;
     if (h.get('labels') === '1') state.zoningLabels = true;
     if (h.get('council') === '0') state.council = false;
   }
@@ -74,6 +77,7 @@
     h.set('use', state.use);
     h.set('view', state.view);
     if (state.mesaZoning) h.set('zones', '1');
+    if (state.residential) h.set('res', '1');
     if (state.zoningLabels) h.set('labels', '1');
     if (!state.council) h.set('council', '0');
     history.replaceState(null, '', '#' + h.toString());
@@ -122,22 +126,26 @@
     const c = COLORS[key];
     let useHatch = c.hatch && HATCH[key === 'NEW_CUP' ? 'NEW_CUP' : 'CUP'];
 
-    if (state.mesaZoning && !AMENDMENT_EMPHASIS.has(key)) {
-      // Underlying Mesa zoning carries district context here.
-      return {
-        fillColor: 'transparent',
-        color: c.stroke,
-        weight: 0.2,
-        opacity: 0.25,
-        fillOpacity: 0,
-        dashArray: c.dashed ? '3 3' : null,
-      };
+    // Punch through non-emphasis amendment fills so reference layers show:
+    // - Mesa Zoning Layer: everywhere
+    // - Residential areas: only on residential parcels
+    if (!AMENDMENT_EMPHASIS.has(key)) {
+      if (state.mesaZoning || (state.residential && feat._mesaResGroup)) {
+        return {
+          fillColor: 'transparent',
+          color: c.stroke,
+          weight: 0.2,
+          opacity: 0.25,
+          fillOpacity: 0,
+          dashArray: c.dashed ? '3 3' : null,
+        };
+      }
     }
 
     return {
       fillColor: useHatch || c.fill,
       color: c.stroke,
-      weight: state.mesaZoning ? 0.8 : 0.7,
+      weight: (state.mesaZoning || state.residential) ? 0.8 : 0.7,
       opacity: 0.92,
       fillOpacity: c.fillOpacity,
       dashArray: c.dashed ? '3 3' : null,
@@ -172,6 +180,7 @@
 
   const canvasRenderer = L.canvas({ padding: 0.3 });
   const refCanvasRenderer = L.canvas({ padding: 0.3 });
+  const residentialCanvasRenderer = L.canvas({ padding: 0.3 });
   HATCH.CUP = makeHatch(COLORS.CUP.fill);
   HATCH.NEW_CUP = makeHatch(COLORS.NEW_CUP.fill);
 
@@ -247,10 +256,19 @@
       const raw = feat._mesaRaw || feat.properties[zoneField] || '';
       feat._mesaLabelText = S.zoneColorKey(raw) || raw;
     }
+    if (feat._mesaResGroup === undefined) {
+      const raw = feat._mesaRaw || feat.properties[zoneField] || '';
+      const g = S.residentialGroup(raw);
+      feat._mesaResGroup = g ? g.id : null;
+    }
   }
 
   function syncLayerOrder() {
     if (state.mesaZoningLayer && state.mesaZoning) state.mesaZoningLayer.bringToBack();
+    if (state.residentialLayer && state.residential) {
+      if (state.mesaZoningLayer && state.mesaZoning) state.residentialLayer.bringToFront();
+      else state.residentialLayer.bringToBack();
+    }
     if (state.layer) state.layer.bringToFront();
     if (state.councilLayer && state.council) state.councilLayer.bringToFront();
     // Markers don't support bringToFront in Leaflet — use zIndexOffset instead.
@@ -280,6 +298,7 @@
       },
     }).addTo(map);
     buildMesaZoningLayer();
+    buildResidentialLayer();
     syncLayerOrder();
     applyViewBounds();
   }
@@ -321,6 +340,38 @@
       state.mesaZoningLayer.bringToBack();
     } else {
       map.removeLayer(state.mesaZoningLayer);
+    }
+    syncLayerOrder();
+  }
+
+  function buildResidentialLayer() {
+    if (state.residentialLayer) {
+      map.removeLayer(state.residentialLayer);
+      state.residentialLayer = null;
+    }
+    if (!state.zoning) return;
+    const { fc, zoneField } = state.zoning;
+    state.residentialLayer = L.geoJSON(fc, {
+      interactive: false,
+      renderer: residentialCanvasRenderer,
+      filter: (feat) => {
+        const raw = feat._mesaRaw || feat.properties[zoneField] || '';
+        return !!S.residentialGroup(raw);
+      },
+      style: (feat) => {
+        const raw = feat._mesaRaw || feat.properties[zoneField] || '';
+        return S.residentialStyle(raw, { fillOpacity: 0.44, weight: 0.4 });
+      },
+    });
+    updateResidentialVisibility();
+  }
+
+  function updateResidentialVisibility() {
+    if (!state.residentialLayer) return;
+    if (state.residential) {
+      state.residentialLayer.addTo(map);
+    } else {
+      map.removeLayer(state.residentialLayer);
     }
     syncLayerOrder();
   }
@@ -504,6 +555,11 @@
     el.innerHTML = rows +
       (state.mesaZoning ? legendRow('sw-mesa-zoning', 'Mesa Zoning Layer — district colors where amendment is neutral') : '') +
       (state.mesaZoning ? legendRow('sw-mesa-blend', 'Amendment colors highlight permitted, CUP & changed districts') : '') +
+      (state.residential
+        ? S.RESIDENTIAL_GROUP_ORDER.map((id) =>
+            legendRow(`sw-res-${id}`, S.RESIDENTIAL_GROUPS[id].label)
+          ).join('')
+        : '') +
       (state.zoningLabels ? legendRow('sw-zone-label', 'Zoning district code labels') : '') +
       (state.council ? legendRow('sw-council', 'City Council district boundary') : '');
   }
@@ -673,6 +729,7 @@
     readHash();
     if (R.USES[state.use].standardsOnly) document.getElementById('view-toggle').classList.add('disabled');
     document.getElementById('mesa-zoning-toggle').checked = state.mesaZoning;
+    document.getElementById('residential-toggle').checked = state.residential;
     document.getElementById('zoning-labels-toggle').checked = state.zoningLabels;
     document.getElementById('council-toggle').checked = state.council;
     update();
@@ -719,6 +776,13 @@
   document.getElementById('mesa-zoning-toggle').addEventListener('change', (e) => {
     state.mesaZoning = e.target.checked;
     updateMesaZoningVisibility();
+    restyle();
+    renderLegend();
+    writeHash();
+  });
+  document.getElementById('residential-toggle').addEventListener('change', (e) => {
+    state.residential = e.target.checked;
+    updateResidentialVisibility();
     restyle();
     renderLegend();
     writeHash();

@@ -239,6 +239,11 @@ header .spacer { flex: 1; }
   background: linear-gradient(90deg, #008300 0%, #008300 40%, transparent 40%, transparent 60%, #b45309 60%, #b45309 100%);
   border-style: dashed;
 }
+.sw-res-single { background: #c9b8ef; border-color: #7a62b8; }
+.sw-res-smallLot { background: #a88ddd; border-color: #6a52a8; }
+.sw-res-multi { background: #7e5fc4; border-color: #4f3a8a; }
+.sw-res-downtown { background: #5a3d9e; border-color: #3a2870; }
+.sw-res-fbcNeighborhood { background: #9b7ad4; border-color: #5f4699; }
 .sw-zone-label {
   background: rgba(255, 255, 255, 0.85);
   color: var(--ink-2);

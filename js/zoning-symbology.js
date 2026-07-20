@@ -190,8 +190,100 @@ const MESA_ZONING_COLORS={
   }
 };
 
-function zoneColorKey(raw){if(!raw)return null;const s=String(raw).trim().toUpperCase().replace(/[()]/g," ");return s.split(/[s/,]+/).find(Boolean)||null;}
+function zoneColorKey(raw) {
+  if (!raw) return null;
+  const s = String(raw).trim().toUpperCase().replace(/[()]/g, ' ');
+  return s.split(/[\s/,]+/).find(Boolean) || null;
+}
 
-function mesaZoningStyle(raw,opts={}){const key=zoneColorKey(raw);const c=MESA_ZONING_COLORS[key]||MESA_ZONING_COLORS.DEFAULT;const fillOpacity=opts.fillOpacity??0.38;const weight=opts.weight??0.35;return{fillColor:c.fill,color:c.stroke,weight,opacity:0.75,fillOpacity};}
+function mesaZoningStyle(raw, opts = {}) {
+  const key = zoneColorKey(raw);
+  const c = MESA_ZONING_COLORS[key] || MESA_ZONING_COLORS.DEFAULT;
+  const fillOpacity = opts.fillOpacity ?? 0.38;
+  const weight = opts.weight ?? 0.35;
+  return { fillColor: c.fill, color: c.stroke, weight, opacity: 0.75, fillOpacity };
+}
 
-window.MesaZoningSymbology={MESA_ZONING_COLORS,zoneColorKey,mesaZoningStyle};
+/* Residential district groups from City of Mesa Zoning field values.
+   Violet family — distinct from amendment green/amber/blue, subtle enough
+   to sit under the amendment overlay without overwhelming it. */
+const RESIDENTIAL_GROUPS = {
+  single: {
+    id: 'single',
+    label: 'Single Residence (RS)',
+    match: /^RS-/,
+    fill: '#c9b8ef',
+    stroke: '#7a62b8',
+  },
+  smallLot: {
+    id: 'smallLot',
+    label: 'Small Lot Single Residence (RSL)',
+    match: /^RSL-/,
+    fill: '#a88ddd',
+    stroke: '#6a52a8',
+  },
+  multi: {
+    id: 'multi',
+    label: 'Multiple Residence (RM)',
+    match: /^RM-/,
+    fill: '#7e5fc4',
+    stroke: '#4f3a8a',
+  },
+  downtown: {
+    id: 'downtown',
+    label: 'Downtown Residential (DR)',
+    match: /^DR-/,
+    fill: '#5a3d9e',
+    stroke: '#3a2870',
+  },
+  fbcNeighborhood: {
+    id: 'fbcNeighborhood',
+    label: 'Form-Based Neighborhood (T3N–T5N)',
+    match: /^(T3N|T4N|T4NF|T5N)$/,
+    fill: '#9b7ad4',
+    stroke: '#5f4699',
+  },
+};
+
+const RESIDENTIAL_GROUP_ORDER = ['single', 'smallLot', 'multi', 'downtown', 'fbcNeighborhood'];
+
+function residentialGroup(raw) {
+  const key = zoneColorKey(raw);
+  if (!key) return null;
+  for (const id of RESIDENTIAL_GROUP_ORDER) {
+    if (RESIDENTIAL_GROUPS[id].match.test(key)) return RESIDENTIAL_GROUPS[id];
+  }
+  return null;
+}
+
+function residentialStyle(raw, opts = {}) {
+  const g = residentialGroup(raw);
+  if (!g) {
+    return {
+      fillColor: 'transparent',
+      color: 'transparent',
+      weight: 0,
+      opacity: 0,
+      fillOpacity: 0,
+    };
+  }
+  const fillOpacity = opts.fillOpacity ?? 0.42;
+  const weight = opts.weight ?? 0.35;
+  return {
+    fillColor: g.fill,
+    color: g.stroke,
+    weight,
+    opacity: 0.7,
+    fillOpacity,
+  };
+}
+
+window.MesaZoningSymbology = {
+  MESA_ZONING_COLORS,
+  zoneColorKey,
+  mesaZoningStyle,
+  RESIDENTIAL_GROUPS,
+  RESIDENTIAL_GROUP_ORDER,
+  residentialGroup,
+  residentialStyle,
+};
